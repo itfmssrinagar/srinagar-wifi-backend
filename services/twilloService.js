@@ -1,6 +1,24 @@
 import twilio from 'twilio';
+import dotenv from 'dotenv';
 
-const twilioClient = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+dotenv.config();
+
+// Initialize Twilio client lazily after env vars are loaded
+let twilioClient = null;
+
+const getTwilioClient = () => {
+    if (!twilioClient) {
+        const accountSid = process.env.TWILIO_ACCOUNT_SID;
+        const authToken = process.env.TWILIO_AUTH_TOKEN;
+
+        if (!accountSid || !authToken) {
+            throw new Error('Twilio credentials are missing. Please check TWILIO_ACCOUNT_SID and TWILIO_AUTH_TOKEN in .env file.');
+        }
+
+        twilioClient = twilio(accountSid, authToken);
+    }
+    return twilioClient;
+};
 
 // In-memory OTP storage (use DB like Redis in production)
 const otpStorage = new Map();
@@ -32,7 +50,15 @@ export const sendOtp = async (mobileNumber) => {
 
         const message = `Your Srinagar Airport WiFi OTP is: *${otp}*. This OTP is valid for ${expiryMinutes} minutes.`;
 
-        const response = await twilioClient.messages.create({
+        // Get Twilio client (with validation)
+        const client = getTwilioClient();
+
+        // Validate WhatsApp number configuration
+        if (!whatsappFrom || whatsappFrom === 'whatsapp:undefined') {
+            throw new Error('Twilio WhatsApp number is not configured. Please set TWILIO_WHATSAPP_NUMBER or TWILIO_PHONE_NUMBER in .env file.');
+        }
+
+        const response = await client.messages.create({
             body: message,
             from: whatsappFrom,
             to: whatsappTo
