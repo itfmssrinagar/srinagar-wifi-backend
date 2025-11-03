@@ -43,20 +43,39 @@ export const sendOtp = async (mobileNumber) => {
         const expiryTime = Date.now() + expiryMinutes * 60 * 1000;
 
         // Format numbers for WhatsApp
-        const whatsappFrom = process.env.TWILIO_WHATSAPP_NUMBER
-            ? `whatsapp:${process.env.TWILIO_WHATSAPP_NUMBER}`
-            : `whatsapp:${process.env.TWILIO_PHONE_NUMBER}`;
-        const whatsappTo = `whatsapp:${mobileNumber}`;
+        let whatsappFrom = process.env.TWILIO_WHATSAPP_NUMBER
+            ? process.env.TWILIO_WHATSAPP_NUMBER
+            : process.env.TWILIO_PHONE_NUMBER;
+
+        // Validate WhatsApp number configuration
+        if (!whatsappFrom || whatsappFrom === 'undefined') {
+            throw new Error('Twilio WhatsApp number is not configured. Please set TWILIO_WHATSAPP_NUMBER or TWILIO_PHONE_NUMBER in .env file.');
+        }
+
+        // Remove any existing whatsapp: prefix and add it properly
+        whatsappFrom = whatsappFrom.replace(/^whatsapp:/, '');
+        whatsappFrom = `whatsapp:${whatsappFrom}`;
+
+        // Ensure mobile number has + prefix
+        let formattedMobile = mobileNumber;
+        if (!formattedMobile.startsWith('+')) {
+            // If Indian number without country code, add +91
+            if (formattedMobile.length === 10) {
+                formattedMobile = `+91${formattedMobile}`;
+            } else {
+                formattedMobile = `+${formattedMobile}`;
+            }
+        }
+        const whatsappTo = `whatsapp:${formattedMobile}`;
 
         const message = `Your Srinagar Airport WiFi OTP is: *${otp}*. This OTP is valid for ${expiryMinutes} minutes.`;
 
         // Get Twilio client (with validation)
         const client = getTwilioClient();
 
-        // Validate WhatsApp number configuration
-        if (!whatsappFrom || whatsappFrom === 'whatsapp:undefined') {
-            throw new Error('Twilio WhatsApp number is not configured. Please set TWILIO_WHATSAPP_NUMBER or TWILIO_PHONE_NUMBER in .env file.');
-        }
+        // Log the numbers being used (for debugging - remove in production)
+        console.log('Sending WhatsApp from:', whatsappFrom);
+        console.log('Sending WhatsApp to:', whatsappTo);
 
         const response = await client.messages.create({
             body: message,
@@ -64,14 +83,15 @@ export const sendOtp = async (mobileNumber) => {
             to: whatsappTo
         });
 
-        otpStorage.set(mobileNumber, {
+        // Store OTP using formatted mobile number (consistent key for verification)
+        otpStorage.set(formattedMobile, {
             otp: otp,
             expiresAt: expiryTime,
             attempts: 0
         });
 
         setTimeout(() => {
-            otpStorage.delete(mobileNumber);
+            otpStorage.delete(formattedMobile);
         }, expiryMinutes * 60 * 1000);
 
         return {
@@ -83,10 +103,24 @@ export const sendOtp = async (mobileNumber) => {
         };
     } catch (error) {
         console.error('Error sending OTP:', error);
+        
+        // Provide helpful error messages for common issues
+        let errorMessage = "Failed to send OTP";
+        
+        if (error.message.includes('could not find a Channel with the specified From address')) {
+            errorMessage = 'WhatsApp number is not configured or not approved in Twilio. For testing, use Twilio WhatsApp sandbox number (+14155238886) in .env file. Make sure the number is properly set up in your Twilio Console under Messaging > Try it out > Send a WhatsApp message.';
+        } else if (error.message.includes('credentials')) {
+            errorMessage = 'Twilio credentials are invalid or missing. Please check your .env file.';
+        } else if (error.message.includes('Twilio WhatsApp number')) {
+            errorMessage = error.message;
+        } else {
+            errorMessage = `Failed to send OTP: ${error.message}`;
+        }
+        
         return {
             success: false,
             error: error.message,
-            message: "Failed to send OTP"
+            message: errorMessage
         };
     }
 };
@@ -99,7 +133,17 @@ export const sendOtp = async (mobileNumber) => {
  */
 export const verifyOtp = (mobileNumber, otp) => {
     try {
-        const stored = otpStorage.get(mobileNumber);
+        // Format mobile number to match storage key
+        let formattedMobile = mobileNumber;
+        if (!formattedMobile.startsWith('+')) {
+            if (formattedMobile.length === 10) {
+                formattedMobile = `+91${formattedMobile}`;
+            } else {
+                formattedMobile = `+${formattedMobile}`;
+            }
+        }
+
+        const stored = otpStorage.get(formattedMobile);
 
         if (!stored) {
             return {
@@ -109,7 +153,7 @@ export const verifyOtp = (mobileNumber, otp) => {
         }
 
         if (Date.now() > stored.expiresAt) {
-            otpStorage.delete(mobileNumber);
+            otpStorage.delete(formattedMobile);
             return {
                 success: false,
                 message: 'OTP has expired. Please request a new OTP.'
@@ -118,7 +162,7 @@ export const verifyOtp = (mobileNumber, otp) => {
 
         const maxAttempts = parseInt(process.env.OTP_MAX_ATTEMPTS) || 3;
         if (stored.attempts >= maxAttempts) {
-            otpStorage.delete(mobileNumber);
+            otpStorage.delete(formattedMobile);
             return {
                 success: false,
                 message: 'Maximum verification attempts exceeded. Please request a new OTP.'
@@ -128,13 +172,13 @@ export const verifyOtp = (mobileNumber, otp) => {
         stored.attempts++;
 
         if (stored.otp === otp) {
-            otpStorage.delete(mobileNumber);
+            otpStorage.delete(formattedMobile);
             return {
                 success: true,
                 message: 'OTP verified successfully'
             };
         } else {
-            otpStorage.set(mobileNumber, stored);
+            otpStorage.set(formattedMobile, stored);
             const remaining = maxAttempts - stored.attempts;
             return {
                 success: false,
