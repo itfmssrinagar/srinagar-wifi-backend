@@ -3,9 +3,9 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema({
 
     // Basic User Info
-    name: { type: String, required: true },
-    email: { type: String, required: true, unique: true },
-    phone: { type: String, required: true, unique: true },
+    name: { type: String,  },
+    email: { type: String,  unique: true },
+    phone: { type: String,required: true,  unique: true },
     isVerified: { type: Boolean, default: false },
 
     // OTP / Auth Tracking
@@ -14,15 +14,15 @@ const userSchema = new mongoose.Schema({
     otpAttempts: { type: Number, default: 0 },
 
     // Device Information
-    deviceId: { type: String, required: true },
-    deviceType: { type: String, required: true },
-    deviceModel: { type: String, required: true },
-    deviceOs: { type: String, required: true },
-    deviceOsVersion: { type: String, required: true },
-    deviceBrowser: { type: String, required: true },
-    deviceBrowserVersion: { type: String, required: true },
-    deviceIp: { type: String, required: true },
-    deviceMacAddress: { type: String, required: true, index: true },
+    deviceId: { type: String,  },
+    deviceType: { type: String,  },
+    deviceModel: { type: String,  },
+    deviceOs: { type: String,  },
+    deviceOsVersion: { type: String,  },
+    deviceBrowser: { type: String,  },
+    deviceBrowserVersion: { type: String,  },
+    deviceIp: { type: String,  },
+    deviceMacAddress: { type: String,  index: true },
 
     // Assigned Plan (current active one)
     plan: { type: mongoose.Schema.Types.ObjectId, ref: "Plan" },
