@@ -56,8 +56,9 @@ export const sendOtp = async (mobileNumber) => {
         whatsappFrom = whatsappFrom.replace(/^whatsapp:/, '');
         whatsappFrom = `whatsapp:${whatsappFrom}`;
 
-        // Ensure mobile number has + prefix
-        let formattedMobile = mobileNumber;
+        // Ensure mobile number is a string and has + prefix
+        let formattedMobile = String(mobileNumber).trim().replace(/\s/g, ''); // Convert to string and remove spaces
+        
         if (!formattedMobile.startsWith('+')) {
             // If Indian number without country code, add +91
             if (formattedMobile.length === 10) {
@@ -133,8 +134,9 @@ export const sendOtp = async (mobileNumber) => {
  */
 export const verifyOtp = (mobileNumber, otp) => {
     try {
-        // Format mobile number to match storage key
-        let formattedMobile = mobileNumber;
+        // Format mobile number to match storage key - ensure it's a string
+        let formattedMobile = String(mobileNumber).trim().replace(/\s/g, ''); // Convert to string and remove spaces
+        
         if (!formattedMobile.startsWith('+')) {
             if (formattedMobile.length === 10) {
                 formattedMobile = `+91${formattedMobile}`;
@@ -142,6 +144,9 @@ export const verifyOtp = (mobileNumber, otp) => {
                 formattedMobile = `+${formattedMobile}`;
             }
         }
+        
+        // Validate OTP is also a string
+        const otpString = String(otp).trim();
 
         const stored = otpStorage.get(formattedMobile);
 
@@ -171,7 +176,7 @@ export const verifyOtp = (mobileNumber, otp) => {
 
         stored.attempts++;
 
-        if (stored.otp === otp) {
+        if (stored.otp === otpString) {
             otpStorage.delete(formattedMobile);
             return {
                 success: true,
