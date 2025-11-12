@@ -1,68 +1,72 @@
 import mongoose from "mongoose";
 
-const userSchema = new mongoose.Schema({
+const userSchema = new mongoose.Schema(
+  {
+    // 🧍 Basic Info
+    name: { type: String },
+    phone: { type: String, unique: true },
 
-    // Basic User Info
-    name: { type: String,  },
-    email: { type: String,  unique: true },
-    phone: { type: String,required: true,  unique: true },
-    isVerified: { type: Boolean, default: false },
+    // 📡 Device Info (from Ruckus)
+    hostname: { type: String },
+    deviceType: { type: String },         // e.g. "Smartphone"
+    osType: { type: String },             // e.g. "Android 10.0.0"
+    osVendorType: { type: String },       // e.g. "Android"
+    modelName: { type: String },          // e.g. "OPPO Reno13 5G"
 
-    // OTP / Auth Tracking
-    lastOtp: { type: String },
-    otpRequestedAt: { type: Date },
-    otpAttempts: { type: Number, default: 0 },
+    // 🌐 Network Info
+    clientMac: { type: String, index: true },  // Device MAC
+    ipAddress: { type: String },
+    ipv6Address: { type: String },
+    apMac: { type: String },
+    apName: { type: String },
+    ssid: { type: String },
+    vlan: { type: Number },
+    channel: { type: Number },
 
-    // Device Information
-    deviceId: { type: String,  },
-    deviceType: { type: String,  },
-    deviceModel: { type: String,  },
-    deviceOs: { type: String,  },
-    deviceOsVersion: { type: String,  },
-    deviceBrowser: { type: String,  },
-    deviceBrowserVersion: { type: String,  },
-    deviceIp: { type: String,  },
-    deviceMacAddress: { type: String,  index: true },
+    // 🔐 Authentication
+    status: { type: String, enum: ["AUTHORIZED", "UNAUTHORIZED", "BLOCKED"], default: "UNAUTHORIZED" },
+    authStatus: { type: String },
+    authMethod: { type: String },
+    encryptionMethod: { type: String },
+    userRoleName: { type: String },
+    userRoleId: { type: String },
 
-    // Assigned Plan (current active one)
-    plan: { type: mongoose.Schema.Types.ObjectId, ref: "Plan" },
+    // 📊 Traffic Usage
+    txBytes: { type: Number, default: 0 }, // Uploaded
+    rxBytes: { type: Number, default: 0 }, // Downloaded
+    totalBytes: { type: Number, default: 0 }, // Sum of both
+    uplinkRate: { type: Number },
+    downlinkRate: { type: Number },
+    txRatebps: { type: Number },
+    medianTxMCSRate: { type: Number },
+    medianRxMCSRate: { type: Number },
 
-    // Live Usage Tracking
-    dataUsedMB: { type: Number, default: 0 },
-    timeUsedMinutes: { type: Number, default: 0 },
+    // 📶 Signal Info
+    rssi: { type: Number },
+    snr: { type: Number },
+    radioType: { type: String },
 
-    // When plan started and expires
-    planStartTime: { type: Date },
-    planExpiryTime: { type: Date },
+    // 🕒 Session Info
+    sessionStartTime: { type: Date },
+    lastSeen: { type: Date, default: Date.now },
+    zoneId: { type: String },
+    zoneVersion: { type: String },
+    bssid: { type: String },
 
-    // Captive Portal / Radius / Router Integration
-    sessionId: { type: String },   // Mikrotik session-id / Radius session-id
-    apMacAddress: { type: String }, // connected access point
-    gatewayIp: { type: String },
+    // ⚙️ Extra
+    controlPlaneName: { type: String },
+    dataPlaneName: { type: String },
 
-    // Free Trial Tracking
-    freeMinutesAllowed: { type: Number, default: 0 },
-    freeDataAllowed: { type: Number, default: 0 },
-    freeMinutesUsed: { type: Number, default: 0 },
-    freeDataUsed: { type: Number, default: 0 },
+    // 📈 Derived Fields (optional)
+    online: { type: Boolean, default: false },  // computed from Ruckus
+  },
+  { timestamps: true }
+);
 
-    // Account status
-    isSessionActive: { type: Boolean, default: false },
-    isBlocked: { type: Boolean, default: false },  // admin blacklisted user
-    blockReason: { type: String },
-
-    // Last activity
-    lastConnectionTime: { type: Date },
-    lastLogin: { type: Date },
-
-    // Compliance
-    acceptedTerms: { type: Boolean, default: false },
-    marketingOptIn: { type: Boolean, default: false }
-
-}, { timestamps: true });
-
+// 🧠 Index for faster search
+userSchema.index({ clientMac: 1 });
+userSchema.index({ ssid: 1 });
+userSchema.index({ status: 1 });
 userSchema.index({ phone: 1 });
-userSchema.index({ deviceMacAddress: 1 });
-userSchema.index({ sessionId: 1 });
 
 export default mongoose.model("User", userSchema);
