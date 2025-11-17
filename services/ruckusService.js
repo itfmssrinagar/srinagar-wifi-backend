@@ -4,7 +4,6 @@ import https from "https";
 import dotenv from "dotenv";
 import fs from "fs";
 import User from "../models/userModel.js";
-import { count } from "console";
 dotenv.config();
 
 
@@ -179,12 +178,15 @@ export const getZone = async (cookie) => {
 
 /* -------------------------------------------------
 | 8️⃣ GET WLAN USERS (Clients)
+
 |--------------------------------------------------*/
 export const getWlanUser = async (cookies) => {
   try {
     const body = {
       filters: [{ type: "WLAN", value: "5" }],
       fullTextSearch: { type: "AND", value: "" },
+      page:1,
+      limit:50000
     };
         
     const res = await axios.post(
@@ -203,6 +205,94 @@ export const getWlanUser = async (cookies) => {
     return res.data;
   } catch (err) {
     console.error("❌ Get WLAN User error:", err.response?.data || err.message);
+    throw err;
+  }
+};
+
+
+
+// ⏱ 40 minutes in milliseconds  
+const FORTY_MIN = 40 * 60 * 1000;
+
+export const disconnectClient = async (cookies) => {
+  try {
+    const now = Date.now();
+    console.log("disconnectClient called", cookies);
+
+    // ✔ get users whose sessionStartTime < 40 min
+    const users = await User.find({
+      sessionStartTime: { $lt: now - FORTY_MIN }
+    });
+
+    if (users.length === 0) {
+      console.log("⚠ No clients to disconnect.");
+      return { message: "No users found for disconnect" };
+    }
+
+    console.log(`🔍 Found ${users.length} users to disconnect.`);
+
+    const results = [];
+
+    for (const user of users) {
+      if (!user.clientMac || !user.apMac) {
+        console.log("❌ Missing MAC or AP MAC for user:", user._id);
+        continue;
+      }
+
+      const body = {
+        mac: user.clientMac,
+        apMac: user.apMac
+      };
+
+      console.log("➡ Disconnecting:", body);
+
+      const res = await axios.post(
+        `${ROUTER_API_URL}/clients/disconnect`,
+        body,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: cookies
+          },
+          httpsAgent
+        }
+      );
+console.log(" res : ", res);
+
+      results.push({
+        userId: user._id,
+        mac: user.clientMac,
+        status: res.data,
+      });
+    }
+
+    console.log("✅ Clients disconnected:", results.length);
+    return results;
+
+  } catch (err) {
+    console.error("❌ Disconnect Error:", err.response?.data || err.message);
+    throw err;
+  }
+};
+
+export const disconnectClientImmediate = async (body,cookies) => {
+  try {
+
+      const res = await axios.post(
+        `${ROUTER_API_URL}/clients/disconnect`,
+        body,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            Cookie: cookies
+          },
+          httpsAgent
+        }
+      );
+    console.log("✅ Clients disconnected:", res.data);
+
+  } catch (err) {
+    console.error("❌ Disconnect Error:", err.response?.data || err.message);
     throw err;
   }
 };
@@ -357,6 +447,7 @@ export const getUsers = async (filters = {}) => {
     },
   };
 };
+
 
 
 /* -------------------------------------------------

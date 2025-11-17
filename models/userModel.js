@@ -47,7 +47,7 @@ const userSchema = new mongoose.Schema(
     radioType: { type: String },
 
     // 🕒 Session Info
-    sessionStartTime: { type: Date },
+    sessionStartTime: { type: Number },
     lastSeen: { type: Date, default: Date.now },
     zoneId: { type: String },
     zoneVersion: { type: String },

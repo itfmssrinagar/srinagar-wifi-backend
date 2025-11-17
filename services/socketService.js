@@ -1,6 +1,6 @@
 // socketService.js
 import { Server } from "socket.io";
-import { getWlanUser, loginSession, upsertUsersByMac } from "./ruckusService.js";
+import { disconnectClient, getWlanUser, loginSession, upsertUsersByMac } from "./ruckusService.js";
 
 let io;
 let cachedSession = null; // 🔒 Cache SmartZone session
@@ -54,6 +54,11 @@ export const initSocket = (server) => {
             `🧩 DB Sync → Matched: ${result.matched}, Modified: ${result.modified}, New: ${result.upserted}`
           );
         }
+
+        const data = await disconnectClient(cookie);
+        console.log("disconnect data : "+data);
+        
+
 
         // 4️⃣ Emit live user data to frontend
         socket.emit("onlineUsers", clients);

@@ -9,7 +9,9 @@ import {
   testSmartZoneFlow, 
   getZone,
   getWlanUser,
-  getUsers
+  getUsers,
+  disconnectClient,
+  disconnectClientImmediate
 } from "../services/ruckusService.js";
 
 const router = express.Router();
@@ -174,6 +176,28 @@ router.get("/db-users",async (req, res) => {
   try {
     const data = await getUsers();
     res.status(200).json({ message: "DB Users fetched", data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+})
+router.post("/disconnectclients",async (req, res) => {
+  try {
+    const cookies = "JSESSIONID=sM1F8FQRuju1etHb0aLLlrrLzLcW4ddD; Path=/wsg; Secure; HttpOnly;"
+    console.log("cookies : "+cookies);
+    const data = await disconnectClient(cookies);
+    res.status(200).json({ message: "disconnect Client", data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+})
+
+router.post("/disconnectclient",async (req, res) => {
+  try {
+    const requestBody = req.body;
+    const cookies = "JSESSIONID=sM1F8FQRuju1etHb0aLLlrrLzLcW4ddD; Path=/wsg; Secure; HttpOnly;"
+    console.log("cookies : "+cookies);
+    const data = await disconnectClientImmediate(requestBody,cookies);
+    res.status(200).json({ message: "disconnect Client", data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
